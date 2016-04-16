@@ -1,2 +1,2 @@
-# bash-scripts
-Some little helpers
+# Bash Scripts
+Some little helpers for Linux
