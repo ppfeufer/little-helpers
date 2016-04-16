@@ -1,4 +1,4 @@
 # Linux Helpers
 Some little helpers for Linux
 
-Mostly bash, but not only
+Some bash scripts, a bit of perl and other usefull stuff

@@ -1,0 +1,1 @@
+servercreate virtualserver_name=newServer virtualserver_port=9989 virtualserver_maxclients=256 virtualserver_autostart=1

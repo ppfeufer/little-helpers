@@ -1,0 +1,10 @@
+#!/bin/bash
+# Script: chext (change extensions)
+# Usage: chext old new
+
+echo "changing file extension from $1 to $2"
+
+for i in *.$1; do
+	echo "$i => ${i%$1}$2";
+	mv "$i" "${i%$1}$2";
+done
