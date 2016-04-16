@@ -1,0 +1,185 @@
+#!/bin/bash
+#	get-wordpress
+#	A modification of get-wp-2 from Martin Gebhardt
+#	Modified by: H.-Peter Pfeufer
+
+Version=2.0.1-modified
+
+# Verzeichnisabfrage
+WPDIR=''
+while [ "$WPDIR" == '' ];
+do
+	clear
+	echo -e "Willkommen beim Vor-Installationsassistent von WordPress"
+	echo -e "von Marti Gebhardt (http://saitensprunk.de/) und H.-Peter Pfeufer(http://ppfeufer.de)."
+	echo -e "Version ${Version}\n"
+
+	echo -e "Bitte geben Sie ein Verzeichnis an, in welches WordPress installiert werden soll."
+	echo -e "Oder 'exit' um das Script zu beenden."
+	echo -n "Verzeichnis: "
+	read -e WPDIR
+
+	if [ "$WPDIR" == "exit" ];
+	then
+		exit;
+	fi
+done
+
+# sanitze Directory
+export WPDIR="`echo $WPDIR | sed 's/\ä/ae/g;s/\Ä/ae/g;s/\ö/oe/g;s/\Ö/oe/g;s/\ü/ue/g;s/\Ü/ue/g;s/\ß/ss/g;s/\ /-/g' | tr '[:upper:]' '[:lower:]'`"
+WPDIR=${WPDIR//[^a-zA-Z0-9_-]/}
+
+# Gibt es schon eine Datenbank?
+$DB_QUESTION=''
+NEXT_STEP=false;
+while [ $NEXT_STEP == false ];
+do
+	clear
+	echo -e "Haben Sie bereits eine Datenbank für dieses Projekt eingerichtet"
+	echo -e "[J]a, [N]ein, [e]xit)"
+	echo -n "Antwort: "
+	read -n 1 DB_QUESTION
+
+	export DB_QUESTION="`echo $DB_QUESTION | tr [:upper:] [:lower:]`"
+
+	if [  "${DB_QUESTION}" == "j" -o "${DB_QUESTION}" == "n" -o "${DB_QUESTION}" == "e" ];
+	then
+		NEXT_STEP=true;
+	else
+		NEXT_STEP=false;
+	fi
+done
+
+if [ "${DB_QUESTION}" == "e" ];
+then
+	exit
+elif [ "${DB_QUESTION}" == "n" ];
+then
+	# Datenbankinformationen einsammeln
+	DB_HOST=''
+	DB_NAME=''
+	DB_USER=''
+	DB_PASSWORD=''
+	DB_ADMIN='root'
+	DB_ADMIN_PASSWORD=''
+
+	# Datenbankserver
+	while [ "$DB_HOST" == '' ];
+	do
+		clear
+		echo -e "Bitte geben sie die Datenbankinformationen an."
+		echo -e "'exit' um abzubrechen."
+		echo -n "Datenbankserver: "
+		read -e DB_HOST
+
+		if [ "$DB_HOST" == "exit" ];
+		then
+			exit;
+		fi
+	done
+
+	# Datenbankname
+	while [ "$DB_NAME" == '' ];
+	do
+		clear
+		echo -e "Bitte geben sie die Datenbankinformationen an."
+		echo -e "'exit' um abzubrechen."
+		echo -n "Datenbankname: "
+		read -e DB_NAME
+
+		if [ "$DB_NAME" == "exit" ];
+		then
+			exit;
+		fi
+	done
+
+	# Datenbanknutzer
+	while [ "$DB_USER" == '' ];
+	do
+		clear
+		echo -e "Bitte geben sie die Datenbankinformationen an."
+		echo -e "'exit' um abzubrechen."
+		echo -n "Datenbanknutzer: "
+		read -e DB_USER
+
+		if [ "$DB_USER" == "exit" ];
+		then
+			exit;
+		fi
+	done
+
+	# Datenbankpasswort
+	clear
+	echo -e "Möchten Sie ein Passwort für die Datenbank vergeben?"
+	echo -e "(Enter drücken um ein zufälliges Passwort zu generieren, 'exit' um abzubrechen.)"
+	echo -n "Passwort: "
+	read -e DB_PASSWORD
+
+	if [ "$DB_PASSWORD" == "exit" ];
+	then
+		exit
+	fi
+
+	if [ "$DB_PASSWORD" == '' ];
+	then
+		# Generating random password
+		PASSWORD_LEINGHT=0
+		while [ "${PASSWORD_LEINGHT}" -lt 8 -o "${PASSWORD_LEINGHT}" -gt 32 ] ;
+		do
+			clear
+			echo -e "Wieviele zeichen soll das Passwort haben? (zwischen 8 und 32 Zeichen)"
+			echo -e "'exit' um abzubrechen."
+			echo -n "Anzahl Zeichen: "
+			read -e PASSWORD_LEINGHT
+
+			if [ "$PASSWORD_LEINGHT" == "exit" ];
+			then
+				exit
+			fi
+		done
+
+		STR0="$$"
+		POS=2
+		STR1=$( echo "$STR0" | md5sum | md5sum )
+
+		DB_PASSWORD="${STR1:$POS:$PASSWORD_LEINGHT}" # Zufallspasswort
+	fi
+
+	# Setup der MySQL Datenbank
+	echo "Setup der MySQL-Datenbank"
+	mysql -u$DB_ADMIN -p$DB_ADMIN_PASSWORD mysql << EOF
+	CREATE DATABASE \`$DB_NAME\`;GRANT USAGE ON *.* TO \`$DB_USER\`@\`$DB_HOST\` IDENTIFIED BY "$DB_PASSWORD" WITH MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0;GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,ALTER,LOCK TABLES,CREATE TEMPORARY TABLES ON \`$DB_NAME\`.* TO \`$DB_USER\`@\`$DB_HOST\`;
+EOF
+fi
+
+# WordPress downloaden, entpacken und in das angegebene Verzeichnis ablegen
+clear
+echo -e "Beginne Download von wordpress.org..."
+wget http://static.wordpress-deutschland.org/de-edition/latest.zip
+
+echo -e "Donwload abgeschlossen!"
+echo -e "Entpacke WordPress..."
+unzip latest.zip > unzip.log 2>&1
+echo -e "\nEntpacken abgeschlossen!"
+
+echo -e "Ordner wird gespeichert.."
+mv wordpress $WPDIR
+echo -e "Ordner gespeichert als $WPDIR"
+
+echo -e "\nLösche Installationsdateien"
+rm latest.zip
+echo -e "Datei "latest.zip" wurde erfolgreich entfernt!\n"
+
+clear
+echo -e "Folgende Einstellungen wurden für Sie gespeichert\n"
+
+if [ "${DB_QUESTION}" == "n" ];
+then
+	echo -e "MySQL-Host: $DB_HOST"
+	echo -e "Datenbankname: $DB_NAME"
+	echo -e "Benutzername: $DB_USER"
+	echo -e "Passwort: $DB_PASSWORD"
+fi
+
+echo -e "Blogadresse: http://ihredomain.tld/$WPDIR\n"
+echo -e "Viel Spaß mit WordPress"
